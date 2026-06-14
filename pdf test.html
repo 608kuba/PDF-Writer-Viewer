@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="cs" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <title>Liquid Glass Office Pro v3.5</title>
+    
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    
+    <style>
+        :root[data-theme="light"] {
+            --bg-gradient: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+            --workspace-bg: rgba(241, 245, 249, 0.6);
+            --glass-bg: rgba(255, 255, 255, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.8);
+            --glass-text: #0f172a;
+            --paper-bg: #ffffff;
+            --paper-text: #1e293b;
+            --paper-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            --toolbar-bg: rgba(0, 0, 0, 0.05);
+            --input-bg: #ffffff;
+        }
+
+        :root[data-theme="dark"] {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+            --workspace-bg: rgba(15, 23, 42, 0.8);
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-text: #f8fafc;
+            --paper-bg: #1e293b;
+            --paper-text: #f1f5f9;
+            --paper-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+            --toolbar-bg: rgba(255, 255, 255, 0.05);
+            --input-bg: #334155;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100vh;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden;
+            background: var(--bg-gradient);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .floating-navbar {
+            position: fixed; top: 20px; left: 50%;
+            transform: translateX(-50%);
+            width: 95%; max-width: 1200px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            display: flex; flex-direction: column; gap: 12px;
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            z-index: 100; box-sizing: border-box;
+        }
+
+        .navbar-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+        .nav-modes { display: flex; gap: 8px; }
+
+        .nav-btn {
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid transparent; color: var(--glass-text);
+            padding: 10px 20px; font-size: 14px; font-weight: 600;
+            cursor: pointer; border-radius: 12px; transition: all 0.2s ease;
+        }
+        :root[data-theme="dark"] .nav-btn { background: rgba(255, 255, 255, 0.05); }
+        
+        .nav-btn.active {
+            background: #2563eb; color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .formatting-toolbar {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--toolbar-bg); padding: 8px 12px;
+            border-radius: 12px; border: 1px solid rgba(0, 0, 0, 0.05);
+            flex-wrap: wrap;
+        }
+        
+        .toolbar-group { display: flex; align-items: center; gap: 4px; }
+
+        .tool-btn {
+            background: var(--paper-bg); border: 1px solid rgba(0,0,0,0.1);
+            cursor: pointer; padding: 6px 12px; border-radius: 8px;
+            color: var(--glass-text); font-weight: 600; font-size: 13px;
+        }
+        .tool-btn:hover { background: #2563eb; color: white; }
+        
+        .tool-select {
+            background: var(--paper-bg); color: var(--paper-text);
+            border: 1px solid rgba(0,0,0,0.1); border-radius: 8px;
+            padding: 6px; font-size: 13px; outline: none; cursor: pointer;
+        }
+
+        .divider { width: 1px; height: 20px; background: rgba(0, 0, 0, 0.15); margin: 0 4px; }
+
+        .main-workspace {
+            width: 100%; height: 100vh; padding-top: 170px;
+            background: var(--workspace-bg); box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .view-panel { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+        .hidden { display: none !important; }
+
+        .floating-action-bar { 
+            display: flex; 
+            justify-content: flex-end; 
+            align-items: center;
+            gap: 12px; 
+            width: 95%;
+            max-width: 1400px;
+            margin: 0 auto 10px auto;
+            box-sizing: border-box;
+        }
+        
+        #editor-section .floating-action-bar {
+            width: 210mm;
+        }
+
+        .filename-input {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(0,0,0,0.15);
+            background: var(--input-bg);
+            color: var(--paper-text);
+            font-size: 14px;
+            font-weight: 600;
+            outline: none;
+            width: 220px;
+        }
+        
+        .action-btn {
+            background: #2563eb; color: white;
+            border: none; padding: 10px 20px; border-radius: 10px;
+            font-weight: bold; font-size: 14px; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+        }
+        .action-btn:hover { background: #1d4ed8; }
+        .danger-btn { background: #ef4444; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2); }
+        .danger-btn:hover { background: #dc2626; }
+
+        .paper-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 10px 0 40px 0; }
+        
+        .a4-paper {
+            background: var(--paper-bg); color: var(--paper-text);
+            width: 210mm; height: max-content; min-height: 297mm;
+            padding: 30mm 20mm; box-shadow: var(--paper-shadow);
+            border-radius: 8px; box-sizing: border-box; transition: background 0.3s;
+        }
+
+        #word-editor { width: 100%; min-height: 230mm; outline: none; font-size: 16px; line-height: 1.6; }
+
+        /* Vylepšený rám pro prohlížeč - maximalizace využití prostoru */
+        #pdf-viewer-frame {
+            width: 95%;
+            max-width: 1400px;
+            height: calc(100vh - 230px); /* Sjednocená výška */
+            border: none;
+            box-shadow: var(--paper-shadow);
+            border-radius: 8px;
+            background: white;
+            display: block;
+        }
+
+        /* Placeholder má identické parametry jako rám */
+        #pdf-placeholder {
+            width: 95%;
+            max-width: 1400px;
+            height: calc(100vh - 230px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed rgba(0,0,0,0.1);
+            background: transparent;
+            box-shadow: none;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="floating-navbar">
+        <div class="navbar-row">
+            <div class="nav-modes">
+                <button id="btn-editor" class="nav-btn active">📝 Režim Psaní</button>
+                <button id="btn-reader" class="nav-btn">📖 PDF Prohlížeč</button>
+            </div>
+            <button id="theme-toggle" class="nav-btn">🌓 Přepnout Téma (Světlo/Tma)</button>
+        </div>
+
+        <div id="editor-tools" class="formatting-toolbar">
+            <div class="toolbar-group">
+                <button class="tool-btn" id="btn-bold"><b>B</b></button>
+                <button class="tool-btn" id="btn-italic"><i>I</i></button>
+                <button class="tool-btn" id="btn-underline"><u>U</u></button>
+            </div>
+            <div class="divider"></div>
+            <div class="toolbar-group">
+                <select class="tool-select" id="select-block">
+                    <option value="" selected disabled>Styl textu</option>
+                    <option value="H1">Velký Nadpis</option>
+                    <option value="H2">Menší Nadpis</option>
+                    <option value="P">Obyčejný text</option>
+                </select>
+                <select class="tool-select" id="select-color">
+                    <option value="" selected disabled>Barva písma</option>
+                    <option value="#000000">Černá</option>
+                    <option value="#ef4444">Červená</option>
+                    <option value="#3b82f6">Modrá</option>
+                </select>
+            </div>
+            <div class="divider"></div>
+            <div class="toolbar-group">
+                <button class="tool-btn" id="btn-left">⬅ Vlevo</button>
+                <button class="tool-btn" id="btn-center">↔ Na střed</button>
+                <button class="tool-btn" id="btn-list">• Odrážky</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-workspace">
+        <section id="editor-section" class="view-panel">
+            <div class="floating-action-bar">
+                <input type="text" id="pdf-filename-editor" class="filename-input" value="muj_dokument" placeholder="Název souboru (bez přípony)">
+                <button class="action-btn danger-btn" id="action-clear">🗑 Smazat papír</button>
+                <button class="action-btn" id="action-generate">💾 Vygenerovat PDF</button>
+            </div>
+            <div class="paper-container">
+                <div class="a4-paper">
+                    <div id="word-editor" contenteditable="true">
+                        <h1>Nový dokument</h1>
+                        <p>Zde můžete psát a formátovat text. Export do PDF nyní proběhne naprosto hladce a bez chyb.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="pdf-section" class="view-panel hidden">
+            <div class="floating-action-bar">
+                <label for="pdf-loader" class="action-btn" style="cursor:pointer;">📁 Otevřít PDF z disku</label>
+                <input type="file" id="pdf-loader" accept=".pdf" style="display:none;">
+            </div>
+            <div class="paper-container">
+                <iframe id="pdf-viewer-frame" class="hidden"></iframe>
+                <div id="pdf-placeholder">
+                    <p style="color: var(--glass-text); opacity: 0.6;">Zde se zobrazí vybraný PDF soubor.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        function executeCmd(cmd, value = null) {
+            document.execCommand(cmd, false, value);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnEditor = document.getElementById('btn-editor');
+            const btnReader = document.getElementById('btn-reader');
+            const editorSection = document.getElementById('editor-section');
+            const pdfSection = document.getElementById('pdf-section');
+            const editorTools = document.getElementById('editor-tools');
+            const themeToggle = document.getElementById('theme-toggle');
+            const htmlEl = document.documentElement;
+
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = htmlEl.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                htmlEl.setAttribute('data-theme', newTheme);
+            });
+
+            btnEditor.addEventListener('click', () => {
+                btnEditor.classList.add('active'); btnReader.classList.remove('active');
+                editorSection.classList.remove('hidden'); pdfSection.classList.add('hidden');
+                editorTools.classList.remove('hidden');
+            });
+
+            btnReader.addEventListener('click', () => {
+                btnReader.classList.add('active'); btnEditor.classList.remove('active');
+                pdfSection.classList.remove('hidden'); editorSection.classList.add('hidden');
+                editorTools.classList.add('hidden');
+            });
+
+            document.getElementById('btn-bold').addEventListener('click', () => executeCmd('bold'));
+            document.getElementById('btn-italic').addEventListener('click', () => executeCmd('italic'));
+            document.getElementById('btn-underline').addEventListener('click', () => executeCmd('underline'));
+            
+            document.getElementById('select-block').addEventListener('change', (e) => {
+                executeCmd('formatBlock', e.target.value);
+                e.target.selectedIndex = 0;
+            });
+            
+            document.getElementById('select-color').addEventListener('change', (e) => {
+                executeCmd('foreColor', e.target.value);
+                e.target.selectedIndex = 0;
+            });
+
+            document.getElementById('btn-left').addEventListener('click', () => executeCmd('justifyLeft'));
+            document.getElementById('btn-center').addEventListener('click', () => executeCmd('justifyCenter'));
+            document.getElementById('btn-list').addEventListener('click', () => executeCmd('insertUnorderedList'));
+
+            document.getElementById('action-clear').addEventListener('click', () => {
+                if(confirm('Opravdu chcete vymazat celý obsah papíru?')) {
+                    document.getElementById('word-editor').innerHTML = '<p><br></p>';
+                }
+            });
+
+            document.getElementById('action-generate').addEventListener('click', generatePurePDF);
+
+            document.getElementById('pdf-loader').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const fileURL = URL.createObjectURL(file);
+                const iframe = document.getElementById('pdf-viewer-frame');
+                const placeholder = document.getElementById('pdf-placeholder');
+
+                // CHYTRÉ PARAMETRY: FitV přizpůsobí dokument výšce okna, takže uvidíš větší kus papíru
+                iframe.src = fileURL + '#navpanes=0&view=FitV';
+                iframe.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            });
+        });
+
+        async function generatePurePDF() {
+            const editor = document.getElementById('word-editor');
+            const filenameInput = document.getElementById('pdf-filename-editor');
+            let filename = filenameInput.value.trim() || 'muj_dokument';
+            
+            try {
+                const pdfDoc = await PDFLib.PDFDocument.create();
+                let page = pdfDoc.addPage([595.28, 841.89]); 
+                const { height } = page.getSize();
+                const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+                page.setFont(font);
+                page.setFontSize(12);
+
+                const children = Array.from(editor.children);
+                let currentY = height - 60;
+
+                for (let el of children) {
+                    if (currentY < 60) {
+                        page = pdfDoc.addPage([595.28, 841.89]);
+                        currentY = height - 60;
+                    }
+
+                    let textContent = el.textContent.trim();
+
+                    if (!textContent) {
+                        currentY -= 20; 
+                        continue;
+                    }
+
+                    let fontSize = 12;
+                    if (el.tagName === 'H1') fontSize = 20;
+                    if (el.tagName === 'H2') fontSize = 15;
+
+                    page.drawText(textContent, { x: 50, y: currentY, size: fontSize });
+                    currentY -= 26; 
+                }
+
+                const pdfBytes = await pdfDoc.save();
+                
+                const blob = new Blob([pdfBytes], { type: "application/pdf" });
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = filename + ".pdf";
+                link.click();
+
+            } catch (error) {
+                console.error(error);
+                alert('Chyba při exportu PDF dokumentu.');
+            }
+        }
+    </script>
+</body>
+</html>

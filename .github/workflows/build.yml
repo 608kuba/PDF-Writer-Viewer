@@ -1,0 +1,67 @@
+name: Build PDF Writer & Viewer EXE
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install PyQt5 PyQtWebEngine pyinstaller
+
+    - name: Create Python Wrapper
+      shell: bash
+      run: |
+        cat << 'EOF' > app.py
+        import os
+        import sys
+        from PyQt5.QtCore import QUrl
+        from PyQt5.QtWidgets import QApplication, QMainWindow
+        from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
+
+        class MainWindow(QMainWindow):
+            def __init__(self):
+                super().__init__()
+                self.setWindowTitle("PDF Writer & Viewer")
+                
+                self.browser = QWebEngineView()
+                
+                settings = self.browser.settings()
+                settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+                settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
+                
+                if getattr(sys, 'frozen', False):
+                    base_path = sys._MEIPASS
+                else:
+                    base_path = os.path.dirname(os.path.abspath(__file__))
+                    
+                html_path = os.path.join(base_path, 'pdf test.html')
+                self.browser.setUrl(QUrl.fromLocalFile(html_path))
+                
+                self.setCentralWidget(self.browser)
+                self.showMaximized()
+
+        if __name__ == "__main__":
+            app = QApplication(sys.argv)
+            window = MainWindow()
+            sys.exit(app.exec_())
+        EOF
+
+    - name: Compile with PyInstaller to Single EXE
+      run: |
+        pyinstaller --onefile --noconsole --name "PDF Writer & Viewer" --icon=ikona.ico --add-data "pdf test.html;." app.py
+
+    - name: Upload Perfect EXE
+      uses: actions/upload-artifact@v4
+      with:
+        name: PDF-Writer-Viewer-EXE
+        path: ./dist/PDF Writer & Viewer.exe
